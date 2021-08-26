@@ -2,6 +2,8 @@ package main
 
 /*
 #cgo LDFLAGS: -lpython3.6m
+#cgo CFLAGS: -I../third/TTS-Core/src
+
 #include "ttscore.cpp"
 
 */
