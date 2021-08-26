@@ -2,9 +2,10 @@ package main
 
 /*
 #cgo LDFLAGS: -lpython3.6m
-#cgo CFLAGS: -I../third/TTS-Core/src
+#cgo LDFLAGS: -L${SRCDIR}/../third/TTS-Core/build -lttscore
+#cgo CFLAGS: -I${SRCDIR}/../third/TTS-Core/include
 
-#include "ttscore.cpp"
+#include "ttscore.h"
 
 */
 import "C"
