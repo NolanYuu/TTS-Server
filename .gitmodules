@@ -1,0 +1,3 @@
+[submodule "third/TTS-Core"]
+	path = third/TTS-Core
+	url = https://github.com/NolanYuu/TTS-Core.git
