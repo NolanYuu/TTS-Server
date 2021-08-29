@@ -2,10 +2,10 @@ package ttscore
 
 /*
 #cgo LDFLAGS: -lpython3.6m
-#cgo LDFLAGS: -L${SRCDIR}/../../third/TTS-Core/build -lttscore
+#cgo LDFLAGS: -L${SRCDIR}/../../third/TTS-Core/build -lttscore_api
 #cgo CFLAGS: -I${SRCDIR}/../../third/TTS-Core/include
 
-#include "ttscore.h"
+#include "ttscore_api.h"
 
 */
 import "C"
@@ -27,10 +27,3 @@ func TTSCoreInference(model *_Ctype_struct__object, text string, path string, sa
 
 	return float64(length)
 }
-
-// func main() {
-// 	var text2speech = GetInstanceText2Speech("/nolan/demo/TTS-Core/examples/ljspeech/fastspeech2.yaml", "/nolan/demo/TTS-Core/examples/ljspeech/fastspeech2.pth", 1)
-// 	var length = Inference(text2speech, "Just for test", "/nolan/inference/test.wav", 22050)
-// 	fmt.Println(length)
-// 	// C.free(unsafe.Pointer(text2speech))
-// }
