@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	ttscore "./ttscore"
+	ttscore "TTS-Server/src/ttscore"
 )
 
 func main() {

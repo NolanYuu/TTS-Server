@@ -1,3 +1,6 @@
-[submodule "third/TTS-Core"]
-	path = third/TTS-Core
+[submodule "submodules/TTS-Core"]
+	path = submodules/TTS-Core
 	url = https://github.com/NolanYuu/TTS-Core.git
+[submodule "submodules/TTS-Web"]
+	path = submodules/TTS-Web
+	url = https://github.com/NolanYuu/TTS-Web.git
