@@ -9,16 +9,22 @@ package ttscore
 
 */
 import "C"
-import "unsafe"
+import (
+	"unsafe"
+)
 
-func TTSCoreInitModel(config_file string, model_file string, use_gpu int) *C.PyObject {
-	var c_config_file = C.CString(config_file)
-	var c_model_file = C.CString(model_file)
+func TTSCoreInitModel(model_conf string, model_ckpt string, vocoder_conf string, vocoder_ckpt string, use_gpu int) *C.PyObject {
+	var c_model_conf = C.CString(model_conf)
+	var c_model_ckpt = C.CString(model_ckpt)
+	var c_vocoder_conf = C.CString(vocoder_conf)
+	var c_vocoder_ckpt = C.CString(vocoder_ckpt)
 	var c_use_gpu = C.int(use_gpu)
-	var model = C.getInstanceText2Speech(c_config_file, c_model_file, c_use_gpu)
+	var model = C.getInstanceText2Speech(c_model_conf, c_model_ckpt, c_vocoder_conf, c_vocoder_ckpt, c_use_gpu)
 
-	C.free(unsafe.Pointer(c_config_file))
-	C.free(unsafe.Pointer(c_model_file))
+	C.free(unsafe.Pointer(c_model_conf))
+	C.free(unsafe.Pointer(c_model_ckpt))
+	C.free(unsafe.Pointer(c_vocoder_conf))
+	C.free(unsafe.Pointer(c_vocoder_ckpt))
 	return model
 }
 
