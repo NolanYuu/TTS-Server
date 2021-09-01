@@ -13,6 +13,8 @@ import (
 	"unsafe"
 )
 
+var Model_map = make(map[string](*C.PyObject))
+
 func TTSCoreInitModel(model_conf string, model_ckpt string, vocoder_conf string, vocoder_ckpt string, use_gpu int) *C.PyObject {
 	var c_model_conf = C.CString(model_conf)
 	var c_model_ckpt = C.CString(model_ckpt)

@@ -1,95 +1,103 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"time"
+	"io/ioutil"
+	"log"
+	"net/http"
+	"os"
+	"sync"
+
+	"github.com/gorilla/websocket"
+	"gopkg.in/yaml.v2"
 
 	ttscore "TTS-Server/src/ttscore"
 )
 
-func main() {
-	var model = ttscore.TTSCoreInitModel(
-		"/nolan/demo/TTS-Server/submodules/TTS-Core/examples/ljspeech/fastspeech2.yaml",
-		"/nolan/demo/TTS-Server/submodules/TTS-Core/examples/ljspeech/fastspeech2.pth",
-		"/nolan/demo/TTS-Server/submodules/TTS-Core/examples/vocoder/melgan.yaml",
-		"/nolan/demo/TTS-Server/submodules/TTS-Core/examples/vocoder/melgan.pth",
-		1,
-	)
-	var start = time.Now().UnixNano() / 1e6
-
-	var length = ttscore.TTSCoreInference(model, "Just for test", "/nolan/inference/test.wav", 22050)
-	var end = time.Now().UnixNano() / 1e6
-	fmt.Println(end - start)
-	fmt.Println(length)
+type Config struct {
+	Port      string `yaml:"port"`
+	Data_path string `yaml:"data_path"`
+	Html      string `yaml:"html"`
+	Model     struct {
+		Model_conf string `yaml:"model_conf"`
+		Model_ckpt string `yaml:"model_ckpt"`
+	}
+	Vocoder struct {
+		Vocoder_conf string `yaml:"vocoder_conf"`
+		Vocoder_ckpt string `yaml:"vocoder_ckpt"`
+	}
 }
 
-// package main
+func (c *Config) getConf(config_path string) {
+	yamlFile, err := ioutil.ReadFile(config_path)
+	if err != nil {
+		log.Fatal("yamlFile.Get: ", err)
+	}
 
-// import (
-// 	"os"
-// 	"flag"
-// 	"net/http"
-// 	"fmt"
-// 	"io/ioutil"
-// 	"log"
+	err = yaml.Unmarshal(yamlFile, c)
+	if err != nil {
+		log.Fatal("Unmarshal: ", err)
+	}
+}
 
-// 	"gopkg.in/yaml.v2"
-// 	"github.com/gorilla/websocket"
-// )
+var (
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+	}
+	mutex = sync.Mutex{}
+)
 
-// type Config struct {
-// 	Port      string    `yaml:"port"`
-// 	Data_path string `yaml:"data_path"`
-// }
+func serveHome(config_ptr *Config, w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, (*config_ptr).Html)
+}
 
-// func (c *Config) getConf(config_path string) {
-// 	yamlFile, err := ioutil.ReadFile(config_path)
-// 	if err != nil {
-// 		log.Printf("yamlFile.Get err   #%v ", err)
-// 	}
+func serveWs(config_ptr *Config, w http.ResponseWriter, r *http.Request) {
+	conn, _ := upgrader.Upgrade(w, r, nil)
 
-// 	err = yaml.Unmarshal(yamlFile, c)
-// 	if err != nil {
-// 		log.Fatalf("Unmarshal: %v", err)
-// 	}
-// }
+	for {
+		msgType, msg, err := conn.ReadMessage()
+		if err != nil {
+			log.Fatal("conn.ReadMessage: ", err)
+		}
 
-// var upgrader = websocket.Upgrader{
-//     ReadBufferSize:  1024,
-//     WriteBufferSize: 1024,
-// }
+		fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
 
-// func serveHome(w http.ResponseWriter, r *http.Request) {
-// 	http.ServeFile(w, r, "../submodules/TTS-Web/home.html")
-// }
+		err = conn.WriteMessage(msgType, msg)
 
-// func serveWs(w http.ResponseWriter, r *http.Request) {
-// 	conn, _ := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			log.Fatal("conn.WriteMessage: ", err)
+		}
+	}
+}
 
-// 	for {
-// 		msgType, msg, err := conn.ReadMessage()
-// 		if err != nil {
-// 			return
-// 		}
+func main() {
+	var config Config
+	config.getConf("../config/config.yaml")
+	os.Mkdir(config.Data_path, 0777)
+	addr := flag.String("addr", ":"+config.Port, "http service address")
 
-// 		fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
+	var en_lj_0 = ttscore.TTSCoreInitModel(
+		config.Model.Model_conf,
+		config.Model.Model_ckpt,
+		config.Vocoder.Vocoder_conf,
+		config.Vocoder.Vocoder_ckpt,
+		1,
+	)
 
-// 		if err = conn.WriteMessage(msgType, msg); err != nil {
-// 			return
-// 		}
-// 	}
-// }
+	// for further features
+	ttscore.Model_map["en_lj_0"] = en_lj_0
+	fmt.Println("ok")
 
-// func main() {
-// 	var config Config
-// 	config.getConf("../config/config.yaml")
-// 	os.Mkdir(config.Data_path, 0777)
-// 	var addr = flag.String("addr", ":" + config.Port, "http service address")
-
-// 	http.HandleFunc("/", serveHome)
-// 	http.HandleFunc("/ws", serveWs)
-// 	err := http.ListenAndServe(*addr, nil)
-// 	if err != nil {
-// 		log.Fatal("ListenAndServe: ", err)
-// 	}
-// }
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		serveHome(&config, w, r)
+	})
+	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+		serveWs(&config, w, r)
+	})
+	err := http.ListenAndServe(*addr, nil)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
+}
