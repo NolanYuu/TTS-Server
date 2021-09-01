@@ -1,5 +1,9 @@
 package main
 
+/*
+#include <python3.6m/Python.h>
+*/
+import "C"
 import (
 	"flag"
 	"fmt"
@@ -8,7 +12,9 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"unsafe"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"gopkg.in/yaml.v2"
 
@@ -53,18 +59,31 @@ func serveHome(config_ptr *Config, w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, (*config_ptr).Html)
 }
 
-func serveWs(config_ptr *Config, w http.ResponseWriter, r *http.Request) {
-	conn, _ := upgrader.Upgrade(w, r, nil)
+func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w http.ResponseWriter, r *http.Request) {
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Fatal("upgrader.Upgrade: ", err)
+		return
+	}
+	// defer ws.Close()
 
 	for {
-		msgType, msg, err := conn.ReadMessage()
+		msgType, msg, err := ws.ReadMessage()
 		if err != nil {
 			log.Fatal("conn.ReadMessage: ", err)
 		}
 
-		fmt.Printf("%s sent: %s\n", conn.RemoteAddr(), string(msg))
+		fmt.Printf("%s sent: %s\n", ws.RemoteAddr(), string(msg))
+		wav_uuid := uuid.NewString()
+		fmt.Printf(wav_uuid + "\n")
 
-		err = conn.WriteMessage(msgType, msg)
+		mutex.Lock()
+		ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], string(msg), (*config_ptr).Data_path+wav_uuid+".wav", 22050)
+		mutex.Unlock()
+
+		fmt.Println("finish")
+
+		err = ws.WriteMessage(msgType, msg)
 
 		if err != nil {
 			log.Fatal("conn.WriteMessage: ", err)
@@ -78,23 +97,27 @@ func main() {
 	os.Mkdir(config.Data_path, 0777)
 	addr := flag.String("addr", ":"+config.Port, "http service address")
 
-	var en_lj_0 = ttscore.TTSCoreInitModel(
+	var model_map = make(map[string](unsafe.Pointer))
+
+	var tts_en_lj_0 = ttscore.TTSCoreGetHandle(
 		config.Model.Model_conf,
 		config.Model.Model_ckpt,
 		config.Vocoder.Vocoder_conf,
 		config.Vocoder.Vocoder_ckpt,
-		1,
+		0,
 	)
 
 	// for further features
-	ttscore.Model_map["en_lj_0"] = en_lj_0
-	fmt.Println("ok")
+	model_map["tts_en_lj_0"] = tts_en_lj_0
+	fmt.Println("loaded")
+	ttscore.TTSCoreInference(model_map["tts_en_lj_0"], "test", config.Data_path+"test"+".wav", 22050)
+	fmt.Println("finish")
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveHome(&config, w, r)
 	})
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		serveWs(&config, w, r)
+		serveWs(&config, &model_map, w, r)
 	})
 	err := http.ListenAndServe(*addr, nil)
 	if err != nil {

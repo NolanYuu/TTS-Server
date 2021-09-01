@@ -1,2 +1,9 @@
 port: 3000
 data_path: ../data/
+html: ../submodules/TTS-Web/home.html
+model:
+  model_conf: ../submodules/TTS-Core/models/ljspeech/fastspeech2.yaml
+  model_ckpt: ../submodules/TTS-Core/models/ljspeech/fastspeech2.pth
+vocoder:
+  vocoder_conf: ../submodules/TTS-Core/models/vocoder/melgan.yaml
+  vocoder_ckpt: ../submodules/TTS-Core/models/vocoder/melgan.pth
