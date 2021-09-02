@@ -5,12 +5,14 @@ package main
 */
 import "C"
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 	"unsafe"
 
@@ -35,6 +37,16 @@ type Config struct {
 	}
 }
 
+type TTSRequest struct {
+	Text        string  `json:"text"`
+	Language    string  `json:"language"`
+	Speaker     string  `json:"speaker"`
+	Sample_rate int     `json:"sample_rate"`
+	Format      string  `json:"format"`
+	Volume      float32 `json:"volume"`
+	Speed       float32 `json:"speed"`
+}
+
 func (c *Config) getConf(config_path string) {
 	yamlFile, err := ioutil.ReadFile(config_path)
 	if err != nil {
@@ -55,6 +67,20 @@ var (
 	mutex = sync.Mutex{}
 )
 
+func getTTSRequest(data interface{}) TTSRequest {
+	var tts_request TTSRequest
+	databyte, err := json.Marshal(data)
+	if err != nil {
+		log.Fatal("json marshal: ", err)
+	}
+	err = json.Unmarshal(databyte, &tts_request)
+	if err != nil {
+		log.Fatal("json unmarshal: ", err)
+	}
+
+	return tts_request
+}
+
 func serveHome(config_ptr *Config, w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, (*config_ptr).Html)
 }
@@ -68,26 +94,38 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 	// defer ws.Close()
 
 	for {
-		msgType, msg, err := ws.ReadMessage()
+		var data interface{}
+		err := ws.ReadJSON(&data)
 		if err != nil {
-			log.Fatal("conn.ReadMessage: ", err)
+			log.Fatal("ws.ReadMessage: ", err)
 		}
 
-		fmt.Printf("%s sent: %s\n", ws.RemoteAddr(), string(msg))
+		tts_request := getTTSRequest(data)
+
+		fmt.Printf("%s sent: %s\n", ws.RemoteAddr(), tts_request.Text)
 		wav_uuid := uuid.NewString()
 		fmt.Printf(wav_uuid + "\n")
 
 		mutex.Lock()
-		ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], string(msg), (*config_ptr).Data_path+wav_uuid+".wav", 22050)
+		ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], tts_request.Text, (*config_ptr).Data_path+wav_uuid+".wav", 22050)
 		mutex.Unlock()
 
 		fmt.Println("finish")
 
-		err = ws.WriteMessage(msgType, msg)
+		err = ws.WriteMessage(websocket.TextMessage, []byte(tts_request.Text))
 
 		if err != nil {
-			log.Fatal("conn.WriteMessage: ", err)
+			log.Fatal("ws.WriteMessage: ", err)
 		}
+	}
+}
+
+func test(model_map_ptr *map[string](unsafe.Pointer)) {
+	for i := 0; i < 1; i++ {
+		mutex.Lock()
+		ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], "test"+strconv.Itoa(i), "../data/test"+strconv.Itoa(i)+".wav", 22050)
+		fmt.Printf("finish__________%d\n", i)
+		mutex.Unlock()
 	}
 }
 
@@ -97,9 +135,9 @@ func main() {
 	os.Mkdir(config.Data_path, 0777)
 	addr := flag.String("addr", ":"+config.Port, "http service address")
 
-	var model_map = make(map[string](unsafe.Pointer))
+	model_map := make(map[string](unsafe.Pointer))
 
-	var tts_en_lj_0 = ttscore.TTSCoreGetHandle(
+	tts_en_lj_0 := ttscore.TTSCoreGetHandle(
 		config.Model.Model_conf,
 		config.Model.Model_ckpt,
 		config.Vocoder.Vocoder_conf,
@@ -107,11 +145,10 @@ func main() {
 		0,
 	)
 
-	// for further features
+	// for further features, model name: tts_{language}_{speaker}
 	model_map["tts_en_lj_0"] = tts_en_lj_0
 	fmt.Println("loaded")
-	ttscore.TTSCoreInference(model_map["tts_en_lj_0"], "test", config.Data_path+"test"+".wav", 22050)
-	fmt.Println("finish")
+	test(&model_map)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveHome(&config, w, r)
