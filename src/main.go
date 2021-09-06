@@ -12,7 +12,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
 	"sync"
 	"unsafe"
 
@@ -104,7 +103,7 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 
 		fmt.Printf("%s sent: %s\n", ws.RemoteAddr(), tts_request.Text)
 		wav_uuid := uuid.NewString()
-		fmt.Printf(wav_uuid + "\n")
+		fmt.Println(wav_uuid)
 
 		mutex.Lock()
 		ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], tts_request.Text, (*config_ptr).Data_path+wav_uuid+".wav", 22050)
@@ -117,15 +116,6 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 		if err != nil {
 			log.Fatal("ws.WriteMessage: ", err)
 		}
-	}
-}
-
-func test(model_map_ptr *map[string](unsafe.Pointer)) {
-	for i := 0; i < 1; i++ {
-		mutex.Lock()
-		ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], "test"+strconv.Itoa(i), "../data/test"+strconv.Itoa(i)+".wav", 22050)
-		fmt.Printf("finish__________%d\n", i)
-		mutex.Unlock()
 	}
 }
 
@@ -142,13 +132,13 @@ func main() {
 		config.Model.Model_ckpt,
 		config.Vocoder.Vocoder_conf,
 		config.Vocoder.Vocoder_ckpt,
-		0,
+		1,
 	)
 
 	// for further features, model name: tts_{language}_{speaker}
 	model_map["tts_en_lj_0"] = tts_en_lj_0
 	fmt.Println("loaded")
-	test(&model_map)
+	ttscore.TTSCoreInference(model_map["tts_en_lj_0"], "test", "../data/test.wav", 22050)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		serveHome(&config, w, r)

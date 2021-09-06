@@ -41,3 +41,8 @@ func TTSCoreInference(handle unsafe.Pointer, text string, path string, sample_ra
 	C.free(unsafe.Pointer(c_path))
 	return
 }
+
+func TTSCoreFilnalize() {
+	C.finalize()
+	return
+}
