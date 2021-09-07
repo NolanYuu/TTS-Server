@@ -12,6 +12,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
 	"unsafe"
 
@@ -102,17 +103,25 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 		tts_request := getTTSRequest(data)
 
 		fmt.Printf("%s sent: %s\n", ws.RemoteAddr(), tts_request.Text)
-		wav_uuid := uuid.NewString()
+		wav_uuid := uuid.NewString()[:13]
 		path := (*config_ptr).Data_path + wav_uuid + ".wav"
 		fmt.Println(wav_uuid)
 
-		mutex.Lock()
-		ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], tts_request.Text, path, 22050)
-		mutex.Unlock()
+		var audio_data []uint8
+		if tts_request.Text != "" {
+			mutex.Lock()
+			ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], tts_request.Text, path, 22050)
+			mutex.Unlock()
 
-		fmt.Println("finish")
+			fmt.Println("finish")
 
-		err = ws.WriteMessage(websocket.TextMessage, []byte(tts_request.Text))
+			audio_data, err = ioutil.ReadFile(path)
+			if err != nil {
+				log.Fatal("file read: ", err)
+				return
+			}
+		}
+		err = ws.WriteMessage(websocket.BinaryMessage, []byte(audio_data))
 
 		if err != nil {
 			log.Fatal("ws.WriteMessage: ", err)
@@ -128,7 +137,9 @@ func main() {
 
 	model_map := make(map[string](unsafe.Pointer))
 
-	ttscore.TTSCoreInit()
+	ttscore.TTSCoreInitialize()
+	defer ttscore.TTSCoreFinalize()
+
 	tts_en_lj_0 := ttscore.TTSCoreGetHandle(
 		config.Model.Model_conf,
 		config.Model.Model_ckpt,
@@ -153,5 +164,4 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
-	ttscore.TTSCoreFinalize()
 }

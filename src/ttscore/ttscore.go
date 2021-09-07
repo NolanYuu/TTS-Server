@@ -13,7 +13,7 @@ import (
 	"unsafe"
 )
 
-func TTSCoreInit() {
+func TTSCoreInitialize() {
 	C.initialize()
 	return
 }
