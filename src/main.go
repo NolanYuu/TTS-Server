@@ -90,7 +90,7 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 		log.Fatal("upgrader.Upgrade: ", err)
 		return
 	}
-	// defer ws.Close()
+	defer ws.Close()
 
 	for {
 		var data interface{}
@@ -103,10 +103,11 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 
 		fmt.Printf("%s sent: %s\n", ws.RemoteAddr(), tts_request.Text)
 		wav_uuid := uuid.NewString()
+		path := (*config_ptr).Data_path + wav_uuid + ".wav"
 		fmt.Println(wav_uuid)
 
 		mutex.Lock()
-		ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], tts_request.Text, (*config_ptr).Data_path+wav_uuid+".wav", 22050)
+		ttscore.TTSCoreInference((*model_map_ptr)["tts_en_lj_0"], tts_request.Text, path, 22050)
 		mutex.Unlock()
 
 		fmt.Println("finish")
@@ -127,6 +128,7 @@ func main() {
 
 	model_map := make(map[string](unsafe.Pointer))
 
+	ttscore.TTSCoreInit()
 	tts_en_lj_0 := ttscore.TTSCoreGetHandle(
 		config.Model.Model_conf,
 		config.Model.Model_ckpt,
@@ -137,7 +139,8 @@ func main() {
 
 	// for further features, model name: tts_{language}_{speaker}
 	model_map["tts_en_lj_0"] = tts_en_lj_0
-	fmt.Println("loaded")
+	fmt.Println("model loaded")
+	// FIXME: delete it, how to clear VRAM?
 	ttscore.TTSCoreInference(model_map["tts_en_lj_0"], "test", "../data/test.wav", 22050)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -150,4 +153,5 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+	ttscore.TTSCoreFinalize()
 }

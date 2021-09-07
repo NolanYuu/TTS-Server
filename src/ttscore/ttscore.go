@@ -13,6 +13,11 @@ import (
 	"unsafe"
 )
 
+func TTSCoreInit() {
+	C.initialize()
+	return
+}
+
 func TTSCoreGetHandle(model_conf string, model_ckpt string, vocoder_conf string, vocoder_ckpt string, use_gpu int) unsafe.Pointer {
 	var handle unsafe.Pointer
 
@@ -42,7 +47,7 @@ func TTSCoreInference(handle unsafe.Pointer, text string, path string, sample_ra
 	return
 }
 
-func TTSCoreFilnalize() {
+func TTSCoreFinalize() {
 	C.finalize()
 	return
 }
