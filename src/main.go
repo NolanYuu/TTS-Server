@@ -1,9 +1,5 @@
 package main
 
-/*
-#include <python3.6m/Python.h>
-*/
-import "C"
 import (
 	"encoding/json"
 	"flag"
@@ -12,7 +8,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/signal"
 	"sync"
 	"unsafe"
 
@@ -91,13 +86,15 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 		log.Fatal("upgrader.Upgrade: ", err)
 		return
 	}
-	defer ws.Close()
+	// defer ws.Close()
 
 	for {
 		var data interface{}
 		err := ws.ReadJSON(&data)
 		if err != nil {
-			log.Fatal("ws.ReadMessage: ", err)
+			// log.Fatal("ws.ReadMessage: ", err)
+			ws.Close()
+			return
 		}
 
 		tts_request := getTTSRequest(data)
@@ -118,7 +115,6 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 			audio_data, err = ioutil.ReadFile(path)
 			if err != nil {
 				log.Fatal("file read: ", err)
-				return
 			}
 		}
 		err = ws.WriteMessage(websocket.BinaryMessage, []byte(audio_data))
