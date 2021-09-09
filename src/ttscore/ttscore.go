@@ -1,9 +1,10 @@
 package ttscore
 
 /*
-#cgo LDFLAGS: -lpython3.6m
+#cgo LDFLAGS: -lpython3.8
 #cgo LDFLAGS: -L${SRCDIR}/../../submodules/TTS-Core/build -lttscore_api
 #cgo CFLAGS: -I${SRCDIR}/../../submodules/TTS-Core/include
+#cgo CFLAGS: -I/usr/include/python3.8
 
 #include "ttscore_api.h"
 

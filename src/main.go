@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 	"unsafe"
 
 	"github.com/google/uuid"
@@ -91,6 +92,7 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 	for {
 		var data interface{}
 		err := ws.ReadJSON(&data)
+		start := time.Now().UnixNano() / 1e6
 		if err != nil {
 			// log.Fatal("ws.ReadMessage: ", err)
 			ws.Close()
@@ -119,6 +121,9 @@ func serveWs(config_ptr *Config, model_map_ptr *map[string](unsafe.Pointer), w h
 		}
 		err = ws.WriteMessage(websocket.BinaryMessage, []byte(audio_data))
 
+		end := time.Now().UnixNano() / 1e6
+		fmt.Println(end - start)
+
 		if err != nil {
 			log.Fatal("ws.WriteMessage: ", err)
 		}
@@ -141,7 +146,7 @@ func main() {
 		config.Model.Model_ckpt,
 		config.Vocoder.Vocoder_conf,
 		config.Vocoder.Vocoder_ckpt,
-		1,
+		0,
 	)
 
 	// for further features, model name: tts_{language}_{speaker}
