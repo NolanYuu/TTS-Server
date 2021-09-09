@@ -2,7 +2,12 @@
 Websocket based on go1.17
 
 ## Build
-
+```bash
+cd docker
+docker build . -t pytorch_golang:v1.0
+docker run -itd -p 3000:3000 --gpus all -v {CODE_DIE}:{WORD_DIR} --name pytorch-golang pytorch_golang:v1.0
+docker exec -it pytorch-golang /bin/bash
+```
 
 ## Setup
 ### TTS-Core Setup
